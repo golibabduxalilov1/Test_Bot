@@ -1,4 +1,4 @@
-"""Telegram bot handlarlari"""
+﻿"""Telegram bot handlarlari"""
 
 import os
 import requests

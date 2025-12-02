@@ -118,5 +118,5 @@ class TelegramWebhookView(View):
             logger.error(f"Webhook xatolik: {str(e)}")
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
-    def get(self, request):
+    async def get(self, request):
         return HttpResponse("Telegram Bot Webhook")
