@@ -1,6 +1,4 @@
-﻿"""Telegram bot handlarlari"""
-
-import os
+﻿import os
 import requests
 from telegram import Update
 from telegram.ext import ContextTypes

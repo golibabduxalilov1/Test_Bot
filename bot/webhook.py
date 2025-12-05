@@ -1,5 +1,3 @@
-"""Webhook view"""
-
 import json
 import logging
 from django.http import JsonResponse, HttpResponse
@@ -30,7 +28,6 @@ class TelegramWebhookView(View):
         self.application = None
 
     async def setup_application(self):
-        """Application ni sozlash"""
         if self.application is None:
             self.application = (
                 Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
