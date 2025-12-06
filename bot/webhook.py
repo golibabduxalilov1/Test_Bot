@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -19,95 +20,94 @@ from .states import BotStates
 
 logger = logging.getLogger(__name__)
 
+# Global variable to store the application instance
+_application = None
+_application_lock = asyncio.Lock()
 
-@method_decorator(csrf_exempt, name="dispatch")
-class TelegramWebhookView(View):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.application = None
-
-    async def setup_application(self):
-        if self.application is None:
-            self.application = (
+async def get_application():
+    global _application
+    async with _application_lock:
+        if _application is None:
+            _application = (
                 Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
             )
 
-            self.application.add_handler(
-                CommandHandler("start", BotHandlers.start_command)
-            )
-            self.application.add_handler(
-                CommandHandler("help", BotHandlers.help_command)
-            )
+            _application.add_handler(CommandHandler("start", BotHandlers.start_command))
+            _application.add_handler(CommandHandler("help", BotHandlers.help_command))
 
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(filters.CONTACT, BotHandlers.contact_handler)
             )
 
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(
                     filters.TEXT & filters.Regex("^➕ Yangi test$"),
                     BotHandlers.create_test_start,
                 )
             )
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(
                     filters.TEXT & filters.Regex("^📝 Mening testlarim$"),
                     BotHandlers.my_tests_handler,
                 )
             )
 
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(
                     filters.TEXT & filters.Regex("^📝 Mavjud testlar$"),
                     BotHandlers.available_tests_handler,
                 )
             )
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(
                     filters.TEXT & filters.Regex("^📊 Natijalarim$"),
                     BotHandlers.my_results_handler,
                 )
             )
 
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND,
                     BotHandlers.create_test_name_handler,
                 )
             )
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(
                     filters.Document.ALL | filters.PHOTO,
                     BotHandlers.create_test_file_handler,
                 )
             )
 
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(
                     filters.TEXT & filters.Regex("^❌ Bekor qilish$"),
                     BotHandlers.cancel_handler,
                 )
             )
 
-            self.application.add_handler(
-                CallbackQueryHandler(BotHandlers.callback_handler)
-            )
+            _application.add_handler(CallbackQueryHandler(BotHandlers.callback_handler))
 
-            self.application.add_handler(
+            _application.add_handler(
                 MessageHandler(filters.ALL, BotHandlers.unknown_message_handler)
             )
 
-            await self.application.initialize()
+            await _application.initialize()
+
+    return _application
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class TelegramWebhookView(View):
 
     async def post(self, request):
         try:
-            await self.setup_application()
+            application = await get_application()
 
             update_data = json.loads(request.body)
-            update = Update.de_json(update_data, self.application.bot)
+            update = Update.de_json(update_data, application.bot)
 
-            await self.application.process_update(update)
+            await application.process_update(update)
 
             return JsonResponse({"ok": True})
 
